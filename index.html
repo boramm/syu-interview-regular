@@ -1040,7 +1040,25 @@ function loadFromStorage() {
 
 // ━━ GAS ━━
 function sendToGAS(url, data) {
-  try { const p=new URLSearchParams(); Object.entries(data).forEach(([k,v])=>p.append(k,v??'')); const img=new Image(); img.src=url+'?'+p.toString(); } catch(e){}
+  try {
+    const p = new URLSearchParams();
+    Object.entries(data).forEach(([k,v]) => p.append(k, v ?? ''));
+    const fullUrl = url + '?' + p.toString();
+    // fetch 방식으로 전송 (no-cors로 CORS 우회)
+    fetch(fullUrl, { method: 'GET', mode: 'no-cors' })
+      .catch(() => {
+        // fetch 실패 시 img 방식으로 폴백
+        const img = new Image();
+        img.src = fullUrl;
+      });
+  } catch(e) {
+    try {
+      const p = new URLSearchParams();
+      Object.entries(data).forEach(([k,v]) => p.append(k, v ?? ''));
+      const img = new Image();
+      img.src = url + '?' + p.toString();
+    } catch(e2) {}
+  }
 }
 
 // ━━ 로그인 ━━
@@ -1451,7 +1469,10 @@ async function syncFromSheets() {
   const gasUrl=localStorage.getItem('regular_gasUrl'); if(!gasUrl){showToast('GAS URL이 설정되지 않았습니다','error');return;}
   const btn=document.getElementById('syncBtn'); btn.textContent='🔄 동기화 중...'; btn.disabled=true;
   try {
-    const res=await fetch(gasUrl); const data=await res.json();
+    const res=await fetch(gasUrl, {
+      method: 'GET',
+      redirect: 'follow'
+    }); const data=await res.json();
     if(!data||!data.rows||data.rows.length<=1){showToast('Sheets에 데이터가 없습니다','error');btn.textContent='🔄 Sheets 동기화';btn.disabled=false;return;}
     const rows=data.rows.slice(1).filter(r=>r[5]&&r[3]); const latestMap={};
     rows.forEach(row=>{const key=String(row[5]).trim()+'||'+String(row[3]).trim(); latestMap[key]=row;});
