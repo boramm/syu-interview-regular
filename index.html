@@ -600,6 +600,30 @@
     .login-input::-webkit-input-placeholder { color: rgba(255,255,255,0.7) !important; }
     .login-input::-moz-placeholder { color: rgba(255,255,255,0.7) !important; }
     .login-input:focus { border-color: rgba(255,255,255,0.6) !important; outline: none; }
+  /* ─── PDF 패널 스크롤바 ─── */
+  .pdf-container::-webkit-scrollbar { width: 10px; height: 10px; }
+  .pdf-container::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 6px; }
+  .pdf-container::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; border: 2px solid #e2e8f0; }
+  .pdf-container::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+  /* ─── 평가 패널 스크롤바 ─── */
+  .eval-body::-webkit-scrollbar { width: 10px; }
+  .eval-body::-webkit-scrollbar-track { background: #e8f0fb; border-radius: 6px; }
+  .eval-body::-webkit-scrollbar-thumb { background: #93b4e0; border-radius: 6px; border: 2px solid #e8f0fb; }
+  .eval-body::-webkit-scrollbar-thumb:hover { background: #5a8fd4; }
+
+  /* ─── 사이드바 스크롤바 ─── */
+  .applicant-list::-webkit-scrollbar { width: 8px; }
+  .applicant-list::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 6px; }
+  .applicant-list::-webkit-scrollbar-thumb { background: #b0c4de; border-radius: 6px; }
+  .applicant-list::-webkit-scrollbar-thumb:hover { background: #7fa8d4; }
+
+  /* ─── 대시보드 스크롤바 ─── */
+  .dashboard-view::-webkit-scrollbar { width: 10px; }
+  .dashboard-view::-webkit-scrollbar-track { background: #e8f0fb; border-radius: 6px; }
+  .dashboard-view::-webkit-scrollbar-thumb { background: #93b4e0; border-radius: 6px; border: 2px solid #e8f0fb; }
+  .dashboard-view::-webkit-scrollbar-thumb:hover { background: #5a8fd4; }
+
   @media (max-width: 1023px) {
     .tablet-nav { display: flex; }
     .sidebar { display: none; }
@@ -802,9 +826,9 @@
           <div class="empty-state"><p>👈 좌측에서 지원자를 선택해주세요</p></div>
         </div>
         <div class="eval-footer" id="evalFooter" style="display:none">
-          <button class="save-btn" onclick="markAbsent()" style="flex:1;background:var(--red);font-size:11px" id="absentBtn">🚫 결시</button>
-          <button class="save-btn" onclick="saveEvaluation()" style="flex:2" id="saveBtn">💾 임시 저장</button>
-          <button class="save-btn" onclick="openSubmitModal()" style="flex:1.5;background:var(--green);font-size:11px" id="submitBtn">✅ 최종 제출</button>
+          <button class="save-btn" onclick="markAbsent()" style="flex:0.8;background:var(--red);font-size:11px" id="absentBtn">🚫 결시</button>
+          <button class="save-btn" onclick="saveEvaluation()" style="flex:1.2;background:var(--gray-500);font-size:11px" id="saveBtn">💾 저장</button>
+          <button class="save-btn" onclick="openSubmitModal()" style="flex:2;background:var(--green);font-size:13px;font-weight:700" id="submitBtn">✅ 최종 제출</button>
         </div>
       </div>
     </div>
@@ -1173,6 +1197,8 @@ function selectApplicant(id) {
 
 function switchEvalType(type) {
   if (!currentApplicantId) return;
+  // 탭 전환 전 현재 입력 자동저장
+  autoSaveCurrentTab();
   currentEvalType=type;
   document.getElementById('typeTab-expertise').classList.toggle('active',type==='expertise');
   document.getElementById('typeTab-interview').classList.toggle('active',type==='interview');
@@ -1180,6 +1206,30 @@ function switchEvalType(type) {
   window._tempScores={};
   renderEvalForm(a);
   document.getElementById('evalBody').scrollTop=0;
+}
+
+function autoSaveCurrentTab() {
+  if (!currentUser||!currentApplicantId) return;
+  const a=appData.applicants.find(x=>x.id===currentApplicantId); if(!a) return;
+  const prevIdx=appData.evaluations.findIndex(e=>e.applicantId===currentApplicantId&&e.evaluatorName===currentUser.name);
+  if (prevIdx>=0&&appData.evaluations[prevIdx].submitted) return;
+  // 현재 탭에 입력된 점수가 있을 때만 저장
+  const hasInput = window._tempScores[currentEvalType] && Object.keys(window._tempScores[currentEvalType]).length > 0;
+  if (!hasInput) return;
+  const prev=prevIdx>=0?appData.evaluations[prevIdx]:null;
+  const interview={...(prev?.interview||{})}; const expertise={...(prev?.expertise||{})};
+  if (currentEvalType==='interview'&&window._tempScores.interview) Object.assign(interview,window._tempScores.interview);
+  if (currentEvalType==='expertise'&&window._tempScores.expertise) Object.assign(expertise,window._tempScores.expertise);
+  const iTotal=INTERVIEW_ITEMS.reduce((s,it)=>s+(interview[it.key]||0),0);
+  const eTotal=EXPERTISE_ITEMS.reduce((s,it)=>s+(expertise[it.key]||0),0);
+  const bohun=(a.bohun==='yes')?5:0;
+  const evalDate=document.getElementById('ef_evalDate')?.value||new Date().toISOString().slice(0,10);
+  const rec={id:prev?.id||Date.now().toString(),applicantId:currentApplicantId,evaluatorName:currentUser.name,evalDate,interview,expertise,interviewTotal:iTotal,expertiseTotal:eTotal,bohunPoint:bohun,finalScore:iTotal+eTotal+bohun,grade:document.getElementById('ef_grade')?.value||prev?.grade||'',comment:document.getElementById('ef_comment')?.value||prev?.comment||'',submitted:false};
+  if (prevIdx>=0) appData.evaluations[prevIdx]=rec; else appData.evaluations.push(rec);
+  saveToStorage();
+  window._tempScores={};
+  updateTabStatus();
+  showToast('자동 저장되었습니다 💾','');
 }
 
 function updateTabStatus() {
@@ -1190,8 +1240,31 @@ function updateTabStatus() {
   const hasI=myEval&&myEval.interview&&Object.keys(myEval.interview).length===5;
   const hasE=myEval&&myEval.expertise&&Object.keys(myEval.expertise).length===6;
   tabI.classList.toggle('has-data',hasI); tabE.classList.toggle('has-data',hasE);
-  stI.textContent=hasI?`✓ ${INTERVIEW_ITEMS.reduce((s,it)=>s+(myEval.interview[it.key]||0),0)}점 입력됨`:'100점 만점';
-  stE.textContent=hasE?`✓ ${EXPERTISE_ITEMS.reduce((s,it)=>s+(myEval.expertise[it.key]||0),0)}점 입력됨`:'100점 만점';
+  // 면접 진행률
+  const iFilledCount=myEval?INTERVIEW_ITEMS.filter(it=>myEval.interview?.[it.key]>0).length:0;
+  const eFilledCount=myEval?EXPERTISE_ITEMS.filter(it=>myEval.expertise?.[it.key]>0).length:0;
+  if(hasI){
+    const iSum=INTERVIEW_ITEMS.reduce((s,it)=>s+(myEval.interview[it.key]||0),0);
+    stI.textContent=`✅ 완료 (${iSum}점)`;
+    stI.style.color='var(--green)';
+  } else if(iFilledCount>0){
+    stI.textContent=`${iFilledCount}/5 입력중`;
+    stI.style.color='var(--gold)';
+  } else {
+    stI.textContent='100점 만점';
+    stI.style.color='';
+  }
+  if(hasE){
+    const eSum=EXPERTISE_ITEMS.reduce((s,it)=>s+(myEval.expertise[it.key]||0),0);
+    stE.textContent=`✅ 완료 (${eSum}점)`;
+    stE.style.color='var(--green)';
+  } else if(eFilledCount>0){
+    stE.textContent=`${eFilledCount}/6 입력중`;
+    stE.style.color='var(--gold)';
+  } else {
+    stE.textContent='100점 만점';
+    stE.style.color='';
+  }
 }
 
 // ━━ 평가 폼 렌더링 ━━
@@ -1250,7 +1323,13 @@ function renderEvalForm(a) {
       <span class="total-label">${currentEvalType==='interview'?'면접평가 소계':'전문성평가 소계'}</span>
       <span class="total-score" id="subTotalDisplay">${currentEvalType==='interview'?iSub:eSub} <span>/ 100점</span></span>
     </div>
-    ${currentEvalType==='interview'&&a.bohun==='yes'?`<div class="bohun-box"><div class="bohun-check"><input type="checkbox" id="bohunCheck" ${savedBohun?'checked':''} onchange="calcTotals()" ${isSubmitted?'disabled':''}><label for="bohunCheck">보훈 가점 적용 (+5점)</label></div><span class="bohun-note">국가보훈대상자</span></div>`:''}
+    ${currentEvalType==='interview'&&a.bohun==='yes'?`<div class="bohun-box" style="background:#fdf2f8;border:1.5px solid #f9a8d4;border-radius:8px;padding:11px 14px;display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="bohunCheck" checked disabled style="width:16px;height:16px;accent-color:#9d174d">
+        <label style="font-size:12px;font-weight:700;color:#9d174d">🎖 보훈 가점 자동 적용 (+5점)</label>
+      </div>
+      <span style="margin-left:auto;font-size:11px;background:#fce7f3;color:#9d174d;padding:2px 8px;border-radius:10px;font-weight:600">🔒 자동</span>
+    </div>`:''}
     <div class="grand-total">
       <div class="grand-title">📊 종합 점수 (실시간)</div>
       <div class="grand-row"><span>📋 면접평가</span><span class="${iSub>0?'grand-score':'grand-score empty'}" id="gtInterview">${iSub>0?iSub+'점 / 100':'미입력 / 100'}</span></div>
@@ -1272,8 +1351,8 @@ function renderEvalForm(a) {
       </div>
     </div>
     <div>
-      <div class="eval-section-title">종합 의견 / 기타 소견</div>
-      <textarea class="comment-area" id="ef_comment" placeholder="면접 종합 의견을 자유롭게 입력하세요..." ${isSubmitted?'disabled':''}>${myEval?.comment||''}</textarea>
+      <div class="eval-section-title">종합 의견 / 기타 소견 <span style="font-size:10px;font-weight:400;color:var(--gray-400)">(선택)</span></div>
+      <textarea class="comment-area" id="ef_comment" placeholder="(선택) 면접 종합 의견을 자유롭게 입력하세요..." ${isSubmitted?'disabled':''}>${myEval?.comment||''}</textarea>
     </div>`;
   document.getElementById('evalBody').innerHTML=html;
 }
@@ -1293,7 +1372,7 @@ function calcTotals() {
   let iSub=0, eSub=0;
   INTERVIEW_ITEMS.forEach(it=>{ let v; if(currentEvalType==='interview'&&window._tempScores.interview?.[it.key]!==undefined) v=window._tempScores.interview[it.key]; else v=myEval?.interview?.[it.key]||0; iSub+=v; });
   EXPERTISE_ITEMS.forEach(it=>{ let v; if(currentEvalType==='expertise'&&window._tempScores.expertise?.[it.key]!==undefined) v=window._tempScores.expertise[it.key]; else v=myEval?.expertise?.[it.key]||0; eSub+=v; });
-  const bohun=(document.getElementById('bohunCheck')?.checked)?5:0;
+  const bohun=(a.bohun==='yes')?5:0;
   const curSub=currentEvalType==='interview'?iSub:eSub;
   const stEl=document.getElementById('subTotalDisplay'); if(stEl) stEl.innerHTML=curSub+' <span>/ 100점</span>';
   const gtI=document.getElementById('gtInterview'), gtE=document.getElementById('gtExpertise'), gtB=document.getElementById('gtBohun'), gtF=document.getElementById('gtFinal');
@@ -1318,7 +1397,7 @@ function saveEvaluation() {
   if (currentEvalType==='expertise'&&window._tempScores.expertise) Object.assign(expertise,window._tempScores.expertise);
   const iTotal=INTERVIEW_ITEMS.reduce((s,it)=>s+(interview[it.key]||0),0);
   const eTotal=EXPERTISE_ITEMS.reduce((s,it)=>s+(expertise[it.key]||0),0);
-  const bohun=(document.getElementById('bohunCheck')?.checked)?5:0;
+  const bohun=(a.bohun==='yes')?5:0;
   const rec={id:prev?.id||Date.now().toString(),applicantId:currentApplicantId,evaluatorName:currentUser.name,evalDate,interview,expertise,interviewTotal:iTotal,expertiseTotal:eTotal,bohunPoint:bohun,finalScore:iTotal+eTotal+bohun,grade:document.getElementById('ef_grade')?.value||'',comment:document.getElementById('ef_comment')?.value||'',submitted:false};
   if (prevIdx>=0) appData.evaluations[prevIdx]=rec; else appData.evaluations.push(rec);
   saveToStorage(); window._tempScores={}; renderApplicantList(); updateTabStatus();
