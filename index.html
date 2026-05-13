@@ -1509,9 +1509,11 @@ function handleEvaluatorUpload(e) {
   const reader=new FileReader();
   reader.onload=(ev)=>{
     try {
-      const lines=ev.target.result.split('\n').map(l=>l.trim()).filter(l=>l);
+      const raw=ev.target.result;
+      const sep=raw.includes('\t')?'\t':',';
+      const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
       if(lines.length<2){showToast('파일에 데이터가 없습니다','error');return;}
-      const newEvals=lines.slice(1).map(line=>{const cols=line.split(',').map(c=>c.trim());if(cols.length<2)return null;const[id,name,title,authStr]=cols;if(!id||!name)return null;return{id,name,title:title||'',scope:'all',isAdmin:authStr==='관리자'};}).filter(Boolean);
+      const newEvals=lines.slice(1).map(line=>{const cols=line.split(sep).map(c=>c.trim().replace(/^["']+|["']+$/g,''));if(cols.length<2)return null;const[id,name,title,authStr]=cols;if(!id||!name)return null;return{id,name,title:title||'',scope:'all',isAdmin:authStr==='관리자'};}).filter(Boolean);
       if(!newEvals.length){showToast('유효한 데이터가 없습니다','error');return;}
       if(!confirm(`${newEvals.length}명의 평가위원을 불러옵니다.\n관리자(이보람)는 자동으로 유지됩니다.\n계속할까요?`))return;
       const admin=DEFAULT_EVALUATORS[0];
@@ -1519,7 +1521,7 @@ function handleEvaluatorUpload(e) {
       saveEvaluatorsToStorage(); renderCurrentEvaluators(); showToast(`✅ ${EVALUATORS.length}명의 평가위원이 등록되었습니다`,'success');
     }catch(err){showToast('파일을 읽을 수 없습니다','error');}
   };
-  reader.readAsText(file,'UTF-8'); e.target.value='';
+  reader.readAsText(file); e.target.value='';
 }
 
 // ━━ 지원자 CSV ━━
@@ -1534,16 +1536,18 @@ function handleApplicantUpload(e) {
   const reader=new FileReader();
   reader.onload=(ev)=>{
     try {
-      const lines=ev.target.result.split('\n').map(l=>l.trim()).filter(l=>l);
+      const raw=ev.target.result;
+      const sep=raw.includes('\t')?'\t':',';
+      const lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
       if(lines.length<2){showToast('파일에 데이터가 없습니다','error');return;}
-      const newApps=lines.slice(1).map((line,idx)=>{const cols=line.split(',').map(c=>c.trim());if(cols.length<2)return null;const[num,name,dept,bohunStr,driveUrl]=cols;if(!num||!name)return null;const bohun=(bohunStr==='yes'||bohunStr==='Y'||bohunStr==='예')?'yes':'no';const ru=driveUrl||'';const fu=ru?ru.replace('/view','/preview').replace('?usp=drive_link','').replace('?usp=sharing',''):'';return{id:'a'+String(Date.now()+idx).slice(-8),num,name,department:dept||'',bohun,driveUrl:fu||null};}).filter(Boolean);
+      const newApps=lines.slice(1).map((line,idx)=>{const cols=line.split(sep).map(c=>c.trim().replace(/^["']+|["']+$/g,''));if(cols.length<2)return null;const[num,name,dept,bohunStr,driveUrl]=cols;if(!num||!name)return null;const bohun=(bohunStr==='yes'||bohunStr==='Y'||bohunStr==='예')?'yes':'no';const ru=driveUrl||'';const fu=ru?ru.replace('/view','/preview').replace('?usp=drive_link','').replace('?usp=sharing',''):'';return{id:'a'+String(Date.now()+idx).slice(-8),num,name,department:dept||'',bohun,driveUrl:fu||null};}).filter(Boolean);
       if(!newApps.length){showToast('유효한 데이터가 없습니다','error');return;}
       if(!confirm(`${newApps.length}명의 지원자를 불러옵니다.\n기존 지원자 목록을 덮어쓰시겠어요?`))return;
       appData.applicants=newApps; saveToStorage(); renderApplicantList(); updateDashboard();
       showToast(`✅ ${newApps.length}명의 지원자 정보가 반영되었습니다`,'success');
     }catch(err){showToast('파일을 읽을 수 없습니다','error');}
   };
-  reader.readAsText(file,'UTF-8'); e.target.value='';
+  reader.readAsText(file); e.target.value='';
 }
 
 // ━━ 백업/복원 ━━
