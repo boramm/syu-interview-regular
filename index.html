@@ -789,13 +789,13 @@
           <div class="eval-panel-sub" id="evalPanelSub">좌측 목록에서 평가할 지원자를 클릭하세요</div>
         </div>
         <div class="eval-type-tabs" id="evalTypeTabs" style="display:none">
-          <div class="eval-type-tab active" id="typeTab-interview" onclick="switchEvalType('interview')">
-            📋 면접평가표
-            <span class="tab-status" id="interviewStatus">100점 만점</span>
-          </div>
-          <div class="eval-type-tab" id="typeTab-expertise" onclick="switchEvalType('expertise')">
+          <div class="eval-type-tab active" id="typeTab-expertise" onclick="switchEvalType('expertise')">
             🧠 전문성평가표
             <span class="tab-status" id="expertiseStatus">100점 만점</span>
+          </div>
+          <div class="eval-type-tab" id="typeTab-interview" onclick="switchEvalType('interview')">
+            📋 면접평가표
+            <span class="tab-status" id="interviewStatus">100점 만점</span>
           </div>
         </div>
         <div class="eval-body" id="evalBody">
@@ -1134,7 +1134,7 @@ function renderApplicantList() {
 // ━━ 지원자 선택 ━━
 function selectApplicant(id) {
   const a=appData.applicants.find(x=>x.id===id); if(!a||a.absent) return;
-  currentApplicantId=id; currentEvalType='interview';
+  currentApplicantId=id; currentEvalType='expertise';
   renderApplicantList();
   const viewer=document.getElementById('pdfViewer');
   if (a.driveUrl) { document.getElementById('pdfPlaceholder').style.display='none'; viewer.style.display='block'; viewer.src=a.driveUrl; }
@@ -1156,8 +1156,8 @@ function selectApplicant(id) {
 function switchEvalType(type) {
   if (!currentApplicantId) return;
   currentEvalType=type;
-  document.getElementById('typeTab-interview').classList.toggle('active',type==='interview');
   document.getElementById('typeTab-expertise').classList.toggle('active',type==='expertise');
+  document.getElementById('typeTab-interview').classList.toggle('active',type==='interview');
   const a=appData.applicants.find(x=>x.id===currentApplicantId);
   window._tempScores={};
   renderEvalForm(a);
