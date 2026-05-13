@@ -269,7 +269,7 @@
   .eval-type-tab.active .tab-status { color: var(--blue-mid); }
   .eval-type-tab.has-data .tab-status { color: var(--green); }
 
-  .eval-body { flex: 1; overflow-y: scroll; padding: 14px 18px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: thin; scrollbar-color: #3b82f6 #dbeafe; }
+  .eval-body { flex: 1; overflow-y: scroll; padding: 14px 14px 14px 18px; display: flex; flex-direction: column; gap: 12px; scrollbar-width: auto; scrollbar-color: #475569 #cbd5e1; }
 
   .eval-section-title {
     font-size: 10px; font-weight: 700;
@@ -610,14 +610,28 @@
     .login-input::-moz-placeholder { color: rgba(255,255,255,0.7) !important; }
     .login-input:focus { border-color: rgba(255,255,255,0.6) !important; outline: none; }
   /* ─── 스크롤바 ─── */
-  ::-webkit-scrollbar { width: 12px; height: 12px; }
-  ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
-  ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; border: 3px solid #e2e8f0; min-height: 40px; }
-  ::-webkit-scrollbar-thumb:hover { background: #475569; }
-  .eval-body::-webkit-scrollbar-thumb { background: #3b82f6; border-color: #dbeafe; }
-  .eval-body::-webkit-scrollbar-track { background: #dbeafe; }
-  .applicant-list::-webkit-scrollbar-thumb { background: #60a5fa; border-color: #e0f2fe; }
-  .applicant-list::-webkit-scrollbar-track { background: #e0f2fe; }
+  ::-webkit-scrollbar { width: 14px; height: 14px; }
+  ::-webkit-scrollbar-track { background: #cbd5e1; border-radius: 0; }
+  ::-webkit-scrollbar-thumb { background: #64748b; border-radius: 6px; border: 3px solid #cbd5e1; min-height: 50px; }
+  ::-webkit-scrollbar-thumb:hover { background: #1e293b; cursor: pointer; }
+  ::-webkit-scrollbar-button { display: block; height: 14px; background: #94a3b8; }
+  ::-webkit-scrollbar-button:vertical:start:decrement { background: #94a3b8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M5 0L10 6H0z' fill='white'/%3E%3C/svg%3E") center no-repeat; }
+  ::-webkit-scrollbar-button:vertical:end:increment { background: #94a3b8 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M5 6L0 0h10z' fill='white'/%3E%3C/svg%3E") center no-repeat; }
+
+  /* 평가 패널 스크롤바 - 강조 */
+  .eval-body::-webkit-scrollbar { width: 16px; }
+  .eval-body::-webkit-scrollbar-track { background: #e2e8f0; border-left: 1px solid #cbd5e1; }
+  .eval-body::-webkit-scrollbar-thumb { background: #475569; border-radius: 8px; border: 3px solid #e2e8f0; min-height: 60px; }
+  .eval-body::-webkit-scrollbar-thumb:hover { background: #0f172a; }
+  .eval-body::-webkit-scrollbar-button { display: block; height: 16px; background: #94a3b8; border: 1px solid #cbd5e1; }
+  .eval-body::-webkit-scrollbar-button:vertical:start:decrement { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M5 0L10 6H0z' fill='%23334155'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; }
+  .eval-body::-webkit-scrollbar-button:vertical:end:increment { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M5 6L0 0h10z' fill='%23334155'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; }
+
+  /* 사이드바 스크롤바 */
+  .applicant-list::-webkit-scrollbar { width: 12px; }
+  .applicant-list::-webkit-scrollbar-track { background: #f1f5f9; }
+  .applicant-list::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; border: 2px solid #f1f5f9; }
+  .applicant-list::-webkit-scrollbar-thumb:hover { background: #475569; }
 
   @media (max-width: 1023px) {
     .tablet-nav { display: flex; }
