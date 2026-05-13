@@ -1116,7 +1116,7 @@ function renderApplicantList() {
     else if(hasI) badge='<span class="applicant-badge badge-progress">📋 면접만</span>';
     else if(hasE) badge='<span class="applicant-badge badge-progress">🧠 전문성만</span>';
     return `<div class="applicant-card ${cardClass} ${currentApplicantId===a.id?'active':''}"
-      onclick="${a.absent?'':``selectApplicant('${a.id}')``}"
+      onclick="${a.absent?'':('selectApplicant(\''+a.id+'\')') }"
       style="${a.absent?'opacity:0.45;cursor:not-allowed':''}">
       <div class="applicant-name" style="${a.absent?'text-decoration:line-through;color:var(--gray-400)':''}">${a.num||''} ${a.name}</div>
       <div class="applicant-meta">${a.department||'-'}</div>
