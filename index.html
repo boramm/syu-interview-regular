@@ -600,29 +600,38 @@
     .login-input::-webkit-input-placeholder { color: rgba(255,255,255,0.7) !important; }
     .login-input::-moz-placeholder { color: rgba(255,255,255,0.7) !important; }
     .login-input:focus { border-color: rgba(255,255,255,0.6) !important; outline: none; }
-  /* ─── PDF 패널 스크롤바 ─── */
-  .pdf-container::-webkit-scrollbar { width: 10px; height: 10px; }
-  .pdf-container::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 6px; }
-  .pdf-container::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 6px; border: 2px solid #e2e8f0; }
-  .pdf-container::-webkit-scrollbar-thumb:hover { background: #64748b; }
+  /* ─── 스크롤바 전체 ─── */
+  * { scrollbar-width: thin; scrollbar-color: #94a3b8 #e2e8f0; }
 
-  /* ─── 평가 패널 스크롤바 ─── */
-  .eval-body::-webkit-scrollbar { width: 10px; }
-  .eval-body::-webkit-scrollbar-track { background: #e8f0fb; border-radius: 6px; }
-  .eval-body::-webkit-scrollbar-thumb { background: #93b4e0; border-radius: 6px; border: 2px solid #e8f0fb; }
-  .eval-body::-webkit-scrollbar-thumb:hover { background: #5a8fd4; }
+  .pdf-container { overflow: auto; }
+  .pdf-container::-webkit-scrollbar { width: 12px !important; height: 12px !important; display: block !important; }
+  .pdf-container::-webkit-scrollbar-track { background: #cbd5e1 !important; border-radius: 6px; }
+  .pdf-container::-webkit-scrollbar-thumb { background: #64748b !important; border-radius: 6px; border: 2px solid #cbd5e1; min-height: 40px; }
+  .pdf-container::-webkit-scrollbar-thumb:hover { background: #334155 !important; }
 
-  /* ─── 사이드바 스크롤바 ─── */
-  .applicant-list::-webkit-scrollbar { width: 8px; }
-  .applicant-list::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 6px; }
-  .applicant-list::-webkit-scrollbar-thumb { background: #b0c4de; border-radius: 6px; }
-  .applicant-list::-webkit-scrollbar-thumb:hover { background: #7fa8d4; }
+  .eval-body { overflow-y: scroll; }
+  .eval-body::-webkit-scrollbar { width: 12px !important; display: block !important; }
+  .eval-body::-webkit-scrollbar-track { background: #dbeafe !important; border-radius: 6px; }
+  .eval-body::-webkit-scrollbar-thumb { background: #3b82f6 !important; border-radius: 6px; border: 2px solid #dbeafe; min-height: 40px; }
+  .eval-body::-webkit-scrollbar-thumb:hover { background: #1d4ed8 !important; }
 
-  /* ─── 대시보드 스크롤바 ─── */
-  .dashboard-view::-webkit-scrollbar { width: 10px; }
-  .dashboard-view::-webkit-scrollbar-track { background: #e8f0fb; border-radius: 6px; }
-  .dashboard-view::-webkit-scrollbar-thumb { background: #93b4e0; border-radius: 6px; border: 2px solid #e8f0fb; }
-  .dashboard-view::-webkit-scrollbar-thumb:hover { background: #5a8fd4; }
+  .applicant-list { overflow-y: scroll; }
+  .applicant-list::-webkit-scrollbar { width: 10px !important; display: block !important; }
+  .applicant-list::-webkit-scrollbar-track { background: #e0f2fe !important; border-radius: 6px; }
+  .applicant-list::-webkit-scrollbar-thumb { background: #60a5fa !important; border-radius: 6px; min-height: 30px; }
+  .applicant-list::-webkit-scrollbar-thumb:hover { background: #2563eb !important; }
+
+  .dashboard-view { overflow-y: scroll; }
+  .dashboard-view::-webkit-scrollbar { width: 12px !important; display: block !important; }
+  .dashboard-view::-webkit-scrollbar-track { background: #dbeafe !important; border-radius: 6px; }
+  .dashboard-view::-webkit-scrollbar-thumb { background: #3b82f6 !important; border-radius: 6px; min-height: 40px; }
+  .dashboard-view::-webkit-scrollbar-thumb:hover { background: #1d4ed8 !important; }
+
+  .settings-view { overflow-y: scroll; }
+  .settings-view::-webkit-scrollbar { width: 12px !important; display: block !important; }
+  .settings-view::-webkit-scrollbar-track { background: #dbeafe !important; border-radius: 6px; }
+  .settings-view::-webkit-scrollbar-thumb { background: #3b82f6 !important; border-radius: 6px; min-height: 40px; }
+  .settings-view::-webkit-scrollbar-thumb:hover { background: #1d4ed8 !important; }
 
   @media (max-width: 1023px) {
     .tablet-nav { display: flex; }
@@ -1351,8 +1360,11 @@ function renderEvalForm(a) {
       </div>
     </div>
     <div>
-      <div class="eval-section-title">종합 의견 / 기타 소견 <span style="font-size:10px;font-weight:400;color:var(--gray-400)">(선택)</span></div>
-      <textarea class="comment-area" id="ef_comment" placeholder="(선택) 면접 종합 의견을 자유롭게 입력하세요..." ${isSubmitted?'disabled':''}>${myEval?.comment||''}</textarea>
+      <div class="eval-section-title" style="display:flex;align-items:center;gap:6px">
+        종합 의견
+        <span style="font-size:10px;font-weight:600;color:white;background:var(--gray-400);padding:1px 7px;border-radius:8px">선택</span>
+      </div>
+      <textarea class="comment-area" id="ef_comment" placeholder="💬 (선택사항) 종합 의견을 자유롭게 입력하세요..." ${isSubmitted?'disabled':''}>${myEval?.comment||''}</textarea>
     </div>`;
   document.getElementById('evalBody').innerHTML=html;
 }
