@@ -1023,7 +1023,14 @@ function doGet(e) {
 <script>
 // ━━ 상수 ━━
 const DEFAULT_EVALUATORS = [
-  { id: '005923', name: '이보람', title: '총무인사팀', scope: 'all', isAdmin: true }
+  { id: '005923', name: '이보람', title: '총무인사팀', scope: 'all', isAdmin: true },
+  { id: '000243', name: '류재권', title: '인사담당', scope: 'all', isAdmin: false },
+  { id: '000163', name: '김성완', title: '사무처장', scope: 'all', isAdmin: false },
+  { id: '000618', name: '윤재영', title: '기획처장', scope: 'all', isAdmin: false },
+  { id: '000214', name: '정태석', title: '교무처장', scope: 'all', isAdmin: false },
+  { id: '005968', name: '오혜전', title: '학생처장', scope: 'all', isAdmin: false },
+  { id: '008334', name: '이승희', title: '재무처장', scope: 'all', isAdmin: false },
+  { id: '003636', name: '강병철', title: '외부위원', scope: 'all', isAdmin: false }
 ];
 let EVALUATORS = [...DEFAULT_EVALUATORS];
 
@@ -1044,6 +1051,7 @@ const EXPERTISE_ITEMS = [
 ];
 const GRADE_LABELS = ['S','A','B','C','D'];
 
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbztUr6af0YF337nKUQ-pn5kdlOjxxsD2ClHK4OGi9fzeSGOgExsZTl-Ph16CoAnT6ON2A/exec';
 let currentUser = null;
 let currentApplicantId = null;
 let currentEvalType = 'interview';
@@ -1054,7 +1062,12 @@ function init() {
   loadEvaluatorsFromStorage();
   loadFromStorage();
   document.getElementById('projectTitle').value = appData.projectTitle;
-  document.getElementById('gasUrl').value = localStorage.getItem('regular_gasUrl')||'';
+  // GAS URL 기본값 하드코딩 (어떤 컴퓨터에서든 동일하게)
+  const savedGasUrl = localStorage.getItem('regular_gasUrl') || DEFAULT_GAS_URL;
+  document.getElementById('gasUrl').value = savedGasUrl;
+  if (!localStorage.getItem('regular_gasUrl')) {
+    localStorage.setItem('regular_gasUrl', DEFAULT_GAS_URL);
+  }
   renderApplicantList();
   renderCurrentEvaluators();
   updateDashboard();
@@ -1067,8 +1080,18 @@ function init() {
   }
 }
 function loadEvaluatorsFromStorage() {
+  // 항상 DEFAULT_EVALUATORS 기준으로 시작 (어떤 컴퓨터에서든 동일하게)
+  EVALUATORS = [...DEFAULT_EVALUATORS];
+  // localStorage에 추가 업로드된 평가위원 있으면 병합
   const raw = localStorage.getItem('regular_evaluators');
-  if (raw) { try { const loaded=JSON.parse(raw); const admin=DEFAULT_EVALUATORS[0]; EVALUATORS=[admin,...loaded.filter(e=>e.id!==admin.id)]; } catch(e){} }
+  if (raw) {
+    try {
+      const loaded = JSON.parse(raw);
+      const defaultIds = DEFAULT_EVALUATORS.map(e => e.id);
+      const extra = loaded.filter(e => !defaultIds.includes(e.id));
+      if (extra.length > 0) EVALUATORS = [...EVALUATORS, ...extra];
+    } catch(e) {}
+  }
 }
 function saveEvaluatorsToStorage() { localStorage.setItem('regular_evaluators', JSON.stringify(EVALUATORS)); }
 function saveToStorage() { localStorage.setItem('regular_interviewApp', JSON.stringify(appData)); }
@@ -1443,7 +1466,7 @@ function doFinalSubmit() {
   if (idx<0) return;
   appData.evaluations[idx].submitted=true; appData.evaluations[idx].submittedAt=new Date().toISOString();
   saveToStorage();
-  const gasUrl=localStorage.getItem('regular_gasUrl');
+  const gasUrl=localStorage.getItem('regular_gasUrl')||DEFAULT_GAS_URL||'';
   if (gasUrl) { const a=appData.applicants.find(x=>x.id===currentApplicantId); const ev=appData.evaluations[idx]; sendToGAS(gasUrl,{projectTitle:appData.projectTitle,applicantNum:a?.num||'',applicantName:a?.name||'',department:a?.department||'',evaluatorName:currentUser.name,evalDate:ev.evalDate,i1:ev.interview.i1||0,i2:ev.interview.i2||0,i3:ev.interview.i3||0,i4:ev.interview.i4||0,i5:ev.interview.i5||0,interviewTotal:ev.interviewTotal,e1:ev.expertise.e1||0,e2:ev.expertise.e2||0,e3:ev.expertise.e3||0,e4:ev.expertise.e4||0,e5:ev.expertise.e5||0,e6:ev.expertise.e6||0,expertiseTotal:ev.expertiseTotal,bohunPoint:ev.bohunPoint,finalScore:ev.finalScore,grade:ev.grade,comment:'[최종제출] '+(ev.comment||'')}); }
   document.getElementById('submitModal').classList.remove('open'); renderApplicantList(); showToast('최종 제출 완료!','success');
 }
@@ -1457,7 +1480,7 @@ function markAbsent() {
   const prevIdx=appData.evaluations.findIndex(e=>e.applicantId===currentApplicantId&&e.evaluatorName===currentUser.name);
   if (prevIdx>=0) appData.evaluations[prevIdx]=rec; else appData.evaluations.push(rec);
   saveToStorage();
-  const gasUrl=localStorage.getItem('regular_gasUrl'); if(gasUrl){const b=appData.applicants.find(x=>x.id===currentApplicantId);sendToGAS(gasUrl,{projectTitle:appData.projectTitle,applicantNum:b?.num,applicantName:b?.name,department:b?.department,evaluatorName:currentUser.name,evalDate:rec.evalDate,i1:0,i2:0,i3:0,i4:0,i5:0,interviewTotal:0,e1:0,e2:0,e3:0,e4:0,e5:0,e6:0,expertiseTotal:0,bohunPoint:0,finalScore:0,grade:'결시',comment:'[결시]'});}
+  const gasUrl=localStorage.getItem('regular_gasUrl')||DEFAULT_GAS_URL||''; if(gasUrl){const b=appData.applicants.find(x=>x.id===currentApplicantId);sendToGAS(gasUrl,{projectTitle:appData.projectTitle,applicantNum:b?.num,applicantName:b?.name,department:b?.department,evaluatorName:currentUser.name,evalDate:rec.evalDate,i1:0,i2:0,i3:0,i4:0,i5:0,interviewTotal:0,e1:0,e2:0,e3:0,e4:0,e5:0,e6:0,expertiseTotal:0,bohunPoint:0,finalScore:0,grade:'결시',comment:'[결시]'});}
   renderApplicantList(); document.getElementById('evalBody').innerHTML=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px"><div style="font-size:48px">🚫</div><div style="font-size:15px;font-weight:700;color:var(--red)">결시 처리 완료</div></div>`;
   document.getElementById('evalFooter').style.display='none'; document.getElementById('evalTypeTabs').style.display='none';
   showToast(a.name+' 결시 처리 완료','error');
@@ -1563,7 +1586,7 @@ function updateGasStatus(state) {
 
 // ━━ Sheets 동기화 ━━
 async function syncFromSheets() {
-  const gasUrl=localStorage.getItem('regular_gasUrl'); if(!gasUrl){showToast('GAS URL이 설정되지 않았습니다','error');return;}
+  const gasUrl=localStorage.getItem('regular_gasUrl')||DEFAULT_GAS_URL||''; if(!gasUrl){showToast('GAS URL이 설정되지 않았습니다','error');return;}
   const btn=document.getElementById('syncBtn'); btn.textContent='🔄 동기화 중...'; btn.disabled=true;
   try {
     const res=await fetch(gasUrl, { method:'GET', redirect:'follow' });
