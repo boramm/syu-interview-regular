@@ -1606,14 +1606,35 @@ async function syncFromSheets() {
     const rows=data.rows.slice(1).filter(r=>r[5]&&r[3]); const latestMap={};
     rows.forEach(row=>{const key=String(row[5]).trim()+'||'+String(row[3]).trim(); latestMap[key]=row;});
     appData.evaluations=[];
+    let syncCount=0, skipCount=0;
     Object.values(latestMap).forEach(row=>{
       const evName=String(row[5]||'').trim(), apName=String(row[3]||'').trim();
-      const applicant=appData.applicants.find(a=>a.name===apName); if(!applicant) return;
+      const apNum=String(row[2]||'').trim(), apDept=String(row[4]||'').trim();
+      if(!apName||!evName) return;
+      // 지원자 찾기 (이름으로)
+      let applicant=appData.applicants.find(a=>a.name===apName);
+      // 없으면 자동 생성
+      if(!applicant){
+        applicant={id:'sync_'+apName+'_'+Date.now()+Math.random(),num:apNum,name:apName,department:apDept,bohun:'no',driveUrl:null};
+        appData.applicants.push(applicant);
+        skipCount++;
+      }
       const grade=String(row[22]||'').trim(), comment=String(row[23]||'').trim();
       const isAbsentRow=grade==='결시'||comment.includes('[결시]');
-      appData.evaluations.push({id:Date.now().toString()+Math.random(),applicantId:applicant.id,evaluatorName:evName,evalDate:row[6]?String(row[6]).slice(0,10):'',interview:{i1:Number(row[7])||0,i2:Number(row[8])||0,i3:Number(row[9])||0,i4:Number(row[10])||0,i5:Number(row[11])||0},interviewTotal:Number(row[12])||0,expertise:{e1:Number(row[13])||0,e2:Number(row[14])||0,e3:Number(row[15])||0,e4:Number(row[16])||0,e5:Number(row[17])||0,e6:Number(row[18])||0},expertiseTotal:Number(row[19])||0,bohunPoint:Number(row[20])||0,finalScore:Number(row[21])||0,grade,comment,submitted:true,isAbsent:isAbsentRow,syncedFromSheets:true});
+      appData.evaluations.push({
+        id:Date.now().toString()+Math.random(),
+        applicantId:applicant.id,evaluatorName:evName,
+        evalDate:row[6]?String(row[6]).slice(0,10):'',
+        interview:{i1:Number(row[7])||0,i2:Number(row[8])||0,i3:Number(row[9])||0,i4:Number(row[10])||0,i5:Number(row[11])||0},
+        interviewTotal:Number(row[12])||0,
+        expertise:{e1:Number(row[13])||0,e2:Number(row[14])||0,e3:Number(row[15])||0,e4:Number(row[16])||0,e5:Number(row[17])||0,e6:Number(row[18])||0},
+        expertiseTotal:Number(row[19])||0,
+        bohunPoint:Number(row[20])||0,finalScore:Number(row[21])||0,
+        grade,comment,submitted:true,isAbsent:isAbsentRow,syncedFromSheets:true
+      });
+      syncCount++;
     });
-    saveToStorage(); updateDashboard(); renderApplicantList(); showToast(`✅ 동기화 완료! 총 ${appData.evaluations.length}건 반영`,'success');
+    saveToStorage(); updateDashboard(); renderApplicantList(); showToast(`✅ 동기화 완료! ${syncCount}건 반영${skipCount>0?' (지원자 '+skipCount+'명 자동 추가)':''}`,'success');
   } catch(e){showToast('동기화 실패: '+e.message,'error');}
   btn.textContent='🔄 Sheets 동기화'; btn.disabled=false;
 }
