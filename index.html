@@ -855,6 +855,7 @@
         <div style="display:flex;gap:7px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" onclick="exportData()">📥 백업</button>
           <button class="btn btn-sm" id="syncBtn" style="background:var(--blue-ghost);color:var(--blue-main);border:1px solid var(--blue-pale)" onclick="syncFromSheets()">🔄 Sheets 동기화</button>
+          <button class="btn btn-sm" id="resendBtn" style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa" onclick="resendPendingToGAS()" title="Sheets에 전송 안 된 평가 재전송">📤 미전송 재전송</button>
           <button class="btn btn-sm" style="background:var(--blue-main);color:white" onclick="printSignature()">📝 평가표 출력</button>
           <button id="finalReportBtn" class="btn btn-sm" onclick="printFinalReport()" style="display:none;background:#065f46;color:white">📋 최종결과표</button>
           <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 인쇄</button>
@@ -1064,17 +1065,15 @@ function init() {
   loadFromStorage();
   document.getElementById('projectTitle').value = appData.projectTitle;
   // GAS URL 기본값 하드코딩 (어떤 컴퓨터에서든 동일하게)
-  const savedGasUrl = localStorage.getItem('regular_gasUrl') || DEFAULT_GAS_URL;
-  document.getElementById('gasUrl').value = savedGasUrl;
-  if (!localStorage.getItem('regular_gasUrl')) {
-    localStorage.setItem('regular_gasUrl', DEFAULT_GAS_URL);
-  }
+  // GAS URL 항상 최신 DEFAULT로 강제 세팅
+  localStorage.setItem('regular_gasUrl', DEFAULT_GAS_URL);
+  document.getElementById('gasUrl').value = DEFAULT_GAS_URL;
   renderApplicantList();
   renderCurrentEvaluators();
   updateDashboard();
   document.getElementById('printDate').textContent = '출력일시: ' + new Date().toLocaleString('ko-KR');
   // 타이틀 고정
-  const savedId = sessionStorage.getItem('regular_currentUserId');
+  const savedId = localStorage.getItem('regular_currentUserId');
   if (savedId) {
     const ev = EVALUATORS.find(e => e.id === savedId);
     if (ev) { currentUser = ev; document.getElementById('loginOverlay').style.display='none'; document.getElementById('userName').textContent=ev.name; document.getElementById('userTitle').textContent=ev.title; renderApplicantList(); }
@@ -1102,26 +1101,23 @@ function loadFromStorage() {
 }
 
 // ━━ GAS ━━
-function sendToGAS(url, data) {
-  try {
-    const p = new URLSearchParams();
-    Object.entries(data).forEach(([k,v]) => p.append(k, v ?? ''));
-    const fullUrl = url + '?' + p.toString();
-    // fetch 방식으로 전송 (no-cors로 CORS 우회)
-    fetch(fullUrl, { method: 'GET', mode: 'no-cors' })
-      .catch(() => {
-        // fetch 실패 시 img 방식으로 폴백
-        const img = new Image();
-        img.src = fullUrl;
-      });
-  } catch(e) {
+async function sendToGAS(url, data, retry=3) {
+  const p = new URLSearchParams();
+  Object.entries(data).forEach(([k,v]) => p.append(k, String(v ?? '')));
+  const fullUrl = url + '?' + p.toString();
+  for (let i=0; i<retry; i++) {
     try {
-      const p = new URLSearchParams();
-      Object.entries(data).forEach(([k,v]) => p.append(k, v ?? ''));
-      const img = new Image();
-      img.src = url + '?' + p.toString();
-    } catch(e2) {}
+      await fetch(fullUrl, { method:'GET', mode:'no-cors', redirect:'follow' });
+      console.log('GAS 전송 성공 (시도'+(i+1)+')');
+      return true;
+    } catch(e) {
+      console.warn('GAS 전송 실패 (시도'+(i+1)+')', e.message);
+      if (i < retry-1) await new Promise(r=>setTimeout(r, 1000*(i+1)));
+    }
   }
+  // 마지막 폴백: img 태그
+  try { const img=new Image(); img.src=fullUrl; } catch(e) {}
+  return false;
 }
 
 // ━━ 로그인 ━━
@@ -1131,7 +1127,7 @@ function doLogin() {
   const pw=document.getElementById('loginPw').value.trim();
   const ev=EVALUATORS.find(e=>e.id===id&&e.id===pw);
   if (!ev) { document.getElementById('loginError').style.display='block'; return; }
-  currentUser=ev; sessionStorage.setItem('regular_currentUserId',ev.id);
+  currentUser=ev; localStorage.setItem('regular_currentUserId',ev.id);
   document.getElementById('loginOverlay').style.display='none';
   document.getElementById('userName').textContent=ev.name;
   document.getElementById('userTitle').textContent=ev.title;
@@ -1140,7 +1136,7 @@ function doLogin() {
 }
 function doLogout() {
   if (!confirm('로그아웃 하시겠습니까?')) return;
-  currentUser=null; sessionStorage.removeItem('regular_currentUserId');
+  currentUser=null; localStorage.removeItem('regular_currentUserId');
   document.getElementById('loginId').value=''; document.getElementById('loginPw').value='';
   document.getElementById('loginError').style.display='none';
   document.getElementById('loginOverlay').style.display='flex';
@@ -1465,11 +1461,45 @@ function doFinalSubmit() {
   if (!currentApplicantId||!currentUser) return;
   const idx=appData.evaluations.findIndex(e=>e.applicantId===currentApplicantId&&e.evaluatorName===currentUser.name);
   if (idx<0) return;
-  appData.evaluations[idx].submitted=true; appData.evaluations[idx].submittedAt=new Date().toISOString();
+  appData.evaluations[idx].submitted=true;
+  appData.evaluations[idx].submittedAt=new Date().toISOString();
+  appData.evaluations[idx].gasSent=false;
   saveToStorage();
+  document.getElementById('submitModal').classList.remove('open');
+  renderApplicantList();
+  showToast('최종 제출 완료! Sheets에 전송 중...','success');
+  // GAS 전송 (비동기 - 백그라운드)
   const gasUrl=localStorage.getItem('regular_gasUrl')||DEFAULT_GAS_URL||'';
-  if (gasUrl) { const a=appData.applicants.find(x=>x.id===currentApplicantId); const ev=appData.evaluations[idx]; sendToGAS(gasUrl,{projectTitle:appData.projectTitle,applicantNum:a?.num||'',applicantName:a?.name||'',department:a?.department||'',evaluatorName:currentUser.name,evalDate:ev.evalDate,i1:ev.interview.i1||0,i2:ev.interview.i2||0,i3:ev.interview.i3||0,i4:ev.interview.i4||0,i5:ev.interview.i5||0,interviewTotal:ev.interviewTotal,e1:ev.expertise.e1||0,e2:ev.expertise.e2||0,e3:ev.expertise.e3||0,e4:ev.expertise.e4||0,e5:ev.expertise.e5||0,e6:ev.expertise.e6||0,expertiseTotal:ev.expertiseTotal,bohunPoint:ev.bohunPoint,finalScore:ev.finalScore,grade:ev.grade,comment:'[최종제출] '+(ev.comment||'')}); }
-  document.getElementById('submitModal').classList.remove('open'); renderApplicantList(); showToast('최종 제출 완료!','success');
+  if (gasUrl) {
+    const a=appData.applicants.find(x=>x.id===currentApplicantId);
+    const ev=appData.evaluations[idx];
+    const gasData={
+      projectTitle:appData.projectTitle,
+      applicantNum:a?.num||'',applicantName:a?.name||'',
+      department:a?.department||'',evaluatorName:currentUser.name,
+      evalDate:ev.evalDate,
+      i1:ev.interview.i1||0,i2:ev.interview.i2||0,i3:ev.interview.i3||0,
+      i4:ev.interview.i4||0,i5:ev.interview.i5||0,
+      interviewTotal:ev.interviewTotal,
+      e1:ev.expertise.e1||0,e2:ev.expertise.e2||0,e3:ev.expertise.e3||0,
+      e4:ev.expertise.e4||0,e5:ev.expertise.e5||0,e6:ev.expertise.e6||0,
+      expertiseTotal:ev.expertiseTotal,
+      bohunPoint:ev.bohunPoint,finalScore:ev.finalScore,
+      grade:ev.grade,comment:'[최종제출] '+(ev.comment||'')
+    };
+    sendToGAS(gasUrl, gasData).then(ok=>{
+      if(ok){
+        appData.evaluations[idx].gasSent=true;
+        saveToStorage();
+        showToast('✅ Sheets 전송 완료!','success');
+      } else {
+        // 전송 실패 → 재전송 대기열에 저장
+        appData.evaluations[idx].gasPending=gasData;
+        saveToStorage();
+        showToast('⚠️ Sheets 전송 실패 — 나중에 재전송 가능','error');
+      }
+    });
+  }
 }
 
 // ━━ 결시 ━━
@@ -1859,6 +1889,49 @@ function navigatePrevApplicant() { const v=appData.applicants.filter(a=>!a.absen
 function navigateNextApplicant() { const v=appData.applicants.filter(a=>!a.absent); const i=v.findIndex(a=>a.id===currentApplicantId); if(i>=0&&i<v.length-1) selectApplicant(v[i+1].id); }
 
 // ━━ 토스트 ━━
+// ━━ 미전송 데이터 재전송 ━━
+async function resendPendingToGAS() {
+  const gasUrl = localStorage.getItem('regular_gasUrl')||DEFAULT_GAS_URL||'';
+  if (!gasUrl) { showToast('GAS URL이 없습니다','error'); return; }
+  const pending = appData.evaluations.filter(e => e.gasPending && !e.gasSent);
+  const submitted = appData.evaluations.filter(e => e.submitted && !e.gasSent && !e.gasPending);
+  const allToSend = [...pending.map(e=>({ev:e, data:e.gasPending})),
+    ...submitted.map(e=>{
+      const a=appData.applicants.find(x=>x.id===e.applicantId);
+      return {ev:e, data:{
+        projectTitle:appData.projectTitle,
+        applicantNum:a?.num||'',applicantName:a?.name||'',
+        department:a?.department||'',evaluatorName:e.evaluatorName,
+        evalDate:e.evalDate,
+        i1:e.interview?.i1||0,i2:e.interview?.i2||0,i3:e.interview?.i3||0,
+        i4:e.interview?.i4||0,i5:e.interview?.i5||0,
+        interviewTotal:e.interviewTotal||0,
+        e1:e.expertise?.e1||0,e2:e.expertise?.e2||0,e3:e.expertise?.e3||0,
+        e4:e.expertise?.e4||0,e5:e.expertise?.e5||0,e6:e.expertise?.e6||0,
+        expertiseTotal:e.expertiseTotal||0,
+        bohunPoint:e.bohunPoint||0,finalScore:e.finalScore||0,
+        grade:e.grade||'',comment:'[재전송] '+(e.comment||'')
+      }};
+    })
+  ];
+  if (allToSend.length === 0) { showToast('재전송할 데이터가 없습니다',''); return; }
+  const btn = document.getElementById('resendBtn');
+  btn.textContent = '📤 전송 중...'; btn.disabled = true;
+  let successCount = 0;
+  for (const {ev, data} of allToSend) {
+    const ok = await sendToGAS(gasUrl, data);
+    if (ok) {
+      const idx = appData.evaluations.findIndex(e=>e.id===ev.id);
+      if (idx>=0) { appData.evaluations[idx].gasSent=true; delete appData.evaluations[idx].gasPending; }
+      successCount++;
+    }
+    await new Promise(r=>setTimeout(r,500));
+  }
+  saveToStorage();
+  btn.textContent = '📤 미전송 재전송'; btn.disabled = false;
+  showToast(`✅ ${successCount}/${allToSend.length}건 전송 완료!`,'success');
+}
+
 let toastTimer;
 function showToast(msg,type='') { const t=document.getElementById('toast'); t.textContent=msg; t.className='toast show'+(type?' '+type:''); clearTimeout(toastTimer); toastTimer=setTimeout(()=>{t.className='toast';},2800); }
 
