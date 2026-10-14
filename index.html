@@ -288,8 +288,8 @@
         <div class="save-ind" id="saveInd"></div>
         <div class="eval-footer" id="evalFooter" style="display:none">
           <button class="save-btn" id="absentBtn" onclick="markAbsentFromPanel()" style="flex:.8;background:var(--red);display:none">🚫 결시</button>
-          <button class="save-btn" id="saveBtn" onclick="saveDraft(false)" style="flex:1.2;background:var(--gray-500)">💾 저장</button>
-          <button class="save-btn" id="submitBtn" onclick="openSubmitModal()" style="flex:2;background:var(--green);font-size:13px">✅ 최종 제출</button>
+          <button class="save-btn" id="saveBtn" onclick="saveDraft(false)" style="flex:5;background:var(--blue-main)">① 임시저장</button>
+          <button class="save-btn" id="submitBtn" onclick="openSubmitModal()" style="flex:5;background:#9ca3af;font-size:13px" disabled>② 최종제출</button>
         </div>
       </div>
     </div>
@@ -668,7 +668,7 @@ function syncCurrentApplicant() {
   const serverSubmitted = !!ev?.submitted;
   if (serverSubmitted !== formSubmitted) { loadDraft(a); renderEvalForm(a); }
   else { const t = $('evalPanelName'); const ord = orderOf(a); t.textContent = (ord?ord+'번 ':'')+a.name; }
-  updateTypeTabs(); calcTotals();
+  updateTypeTabs(); calcTotals(); updateButtons();
 }
 
 function switchEvalType(type) {
@@ -724,8 +724,7 @@ function renderEvalForm(a) {
       <div class="eval-section-title">종합 의견 <span style="font-weight:600;color:#fff;background:var(--gray-400);padding:1px 7px;border-radius:8px;margin-left:4px">선택</span></div>
       <textarea class="comment-area" placeholder="💬 (선택사항) 종합 의견을 자유롭게 입력하세요..." oninput="draft.comment=this.value;markDirty()" ${locked?'disabled':''}>${esc(draft.comment)}</textarea>
     </div>`;
-  $('saveBtn').disabled = locked; $('submitBtn').disabled = locked;
-  $('submitBtn').textContent = locked ? '✅ 제출완료' : '✅ 최종 제출';
+  updateButtons();
   calcTotals(); updateTypeTabs();
 }
 
@@ -734,6 +733,23 @@ function setGrade(type, key, pt) {
   draft[type][key] = pt; markDirty();
   document.querySelectorAll(`.grade-row[data-k="${key}"] .grade-btn`).forEach(b=>b.classList.toggle('selected', Number(b.dataset.pt)===pt));
   calcTotals(); updateTypeTabs();
+}
+
+// ① 임시저장 → ② 최종제출 순서 안내 (임시저장 기록이 있어야 최종제출 활성화)
+function updateButtons() {
+  const saveBtn = $('saveBtn'), submitBtn = $('submitBtn');
+  if (!saveBtn || !submitBtn || !currentUser || !currentApplicantId) return;
+  const saved = !!getEv(currentApplicantId, currentUser.id);
+  if (formSubmitted) {
+    saveBtn.disabled = true; saveBtn.style.background = '#9ca3af'; saveBtn.textContent = '① 저장 완료';
+    submitBtn.disabled = true; submitBtn.style.background = '#9ca3af'; submitBtn.textContent = '✅ 제출완료';
+    return;
+  }
+  saveBtn.disabled = false; saveBtn.style.background = 'var(--blue-main)';
+  saveBtn.textContent = saved ? '① 수정 후 다시 저장' : '① 임시저장';
+  submitBtn.disabled = !saved;
+  submitBtn.style.background = saved ? 'var(--green)' : '#9ca3af';
+  submitBtn.textContent = saved ? '② 최종제출 ✅' : '② 최종제출';
 }
 
 function calcTotals() {
@@ -798,7 +814,7 @@ async function saveDraft(silent) {
   try {
     await withTimeout(fbWrite('/evals/'+key, rec), 10000);
     if (draftVer===v) draftDirty = false;
-    setSaveInd('💾 저장됨 '+timeStr(), 'ok');
+    setSaveInd('💾 저장됨 '+timeStr(), 'ok'); updateButtons();
     if (!silent) showToast('저장되었습니다','success');
     return true;
   } catch(e) {
