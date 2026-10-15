@@ -309,7 +309,7 @@
       <div class="result-table-wrap">
         <div class="result-table-header"><span class="result-table-title">📊 종합 순위표</span><span style="font-size:11px;opacity:.75">평가위원 평균 기준 자동 정렬 · 비고란 직접 입력 가능</span></div>
         <div class="table-scroll"><table class="result-table" style="min-width:820px">
-          <thead><tr><th>순위</th><th>추첨번호</th><th>성명</th><th>제출현황</th><th>면접 평균<br>(100)</th><th>전문성 평균<br>(100)</th><th>보훈</th><th>최종 평균</th><th>비고</th></tr></thead>
+          <thead><tr><th>순위</th><th>지원자번호</th><th>성명</th><th>제출현황</th><th>면접 평균<br>(100)</th><th>전문성 평균<br>(100)</th><th>보훈</th><th>최종 평균</th><th>비고</th></tr></thead>
           <tbody id="resultBody"></tbody>
         </table></div>
       </div>
@@ -327,18 +327,10 @@
     <!-- 설정 -->
     <div class="settings-view" id="settingsView">
       <div class="settings-card">
-        <div class="settings-card-title">🎲 추첨 순서 · 보훈 · 결시 관리</div>
-        <div class="settings-help">
-          지원자가 실물 뽑기로 뽑은 <b>순서</b>를 선택한 뒤 <b>[순서 저장]</b>을 누르세요. 모든 평가위원 화면에 즉시 반영되고, 목록·평가표 출력도 이 순서대로 정렬됩니다.<br>
-          순서를 서로 바꿀 때는 두 사람의 번호를 각각 바꾼 뒤 한 번에 저장하면 됩니다. 보훈·결시 체크는 누르는 즉시 저장됩니다.
-        </div>
+        <div class="settings-card-title">🎲 지원자 · 보훈 · 결시 관리</div>
+        <div class="settings-help">지원자 번호(SYU-001~004)는 고정입니다. 보훈·결시 체크는 누르는 즉시 저장됩니다.</div>
         <div id="drawTableWrap"></div>
-        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-blue" onclick="saveDraws()">💾 순서 저장</button>
-          <button class="btn btn-ghost btn-sm" onclick="cancelDrawEdit()">↩ 되돌리기</button>
-          <button class="btn btn-red btn-sm" onclick="clearDraws()">순서 전체 지우기</button>
-          <span id="drawMsg" style="font-size:11px;color:var(--amber,#92400e)"></span>
-        </div>
+        
       </div>
 
       <div class="settings-card">
@@ -414,11 +406,10 @@ const EVALUATORS = [
 
 // 지원자 (순서는 관리자 화면에서 추첨 결과를 입력)
 const APPLICANTS = [
-  { id:'a001', name:'박준혁', fileId:'1zOgJ6SHzESKDKF84qI6Syq2iGD_L7yCh' },
-  { id:'a002', name:'나상원', fileId:'1ErQxyWRetpWqG9e22nrDakmg32-A4ufK' },
-  { id:'a003', name:'정홍기', fileId:'15bvJyG9x1z7Sd8q5DbtEegvCzgAjjeKx' },
-  { id:'a004', name:'정진우', fileId:'1E-dI44WMhOY9cWmgXFnk5j9iRhj_g4DM' },
-  { id:'a005', name:'박은수', fileId:'1-G9cNnYCAqmTHgsrq01MSoJY1arZBRuM' }
+  { id:'a001', code:'SYU-001', no:1, name:'박은수', fileId:'1xeit1fmhFKuSx0a-lhFTCQ-OFozXuG-B' },
+  { id:'a002', code:'SYU-002', no:2, name:'박준혁', fileId:'1VoRadViRUbFe395XpoArLoZRV8IXOPIp' },
+  { id:'a003', code:'SYU-003', no:3, name:'정진우', fileId:'1mMqIfQaIX6LG43xkeF_ZnWPhFhmQxwGJ' },
+  { id:'a004', code:'SYU-004', no:4, name:'나상원', fileId:'1jZeis7q9u80yEC9mubIp8y7NKT-Ff93g' }
 ];
 
 const INTERVIEW_ITEMS = [
@@ -463,12 +454,12 @@ const getEv = (aid, uid) => DB.evals[evKey(aid, uid)] || null;
 const iTot = ev => sumItems(INTERVIEW_ITEMS, ev.interview);
 const eTot = ev => sumItems(EXPERTISE_ITEMS, ev.expertise);
 const filledCount = ev => !ev ? 0 : INTERVIEW_ITEMS.filter(i=>ev.interview?.[i.key]>0).length + EXPERTISE_ITEMS.filter(i=>ev.expertise?.[i.key]>0).length;
-const isAbsent = a => !!DB.absences[a.id];
+const isAbsent = a => !!(a.fixedAbsent || DB.absences[a.id]);
 const isBohun = a => DB.bohun[a.id] === true;
 const bohunPts = a => isBohun(a) ? BOHUN_POINT : 0;
 const finalOf = (ev, a) => iTot(ev) + eTot(ev) + bohunPts(a);
-const orderOf = a => { const n = Number(DB.draws[a.id]); return n>0 ? n : 0; };
-const orderLabel = a => orderOf(a) ? orderOf(a)+'번' : '순서 미정';
+const orderOf = a => a.no;
+const orderLabel = a => a.code;
 const driveView = a => 'https://drive.google.com/file/d/'+a.fileId+'/view';
 const drivePreview = a => 'https://drive.google.com/file/d/'+a.fileId+'/preview';
 const isCounted = ev => !(EXCLUDE_ADMIN_FROM_RESULTS && ev.isAdmin);
@@ -592,9 +583,9 @@ function renderApplicantList() {
     else if (n>0) { cls='partial'; badge=`<span class="badge badge-prog">📝 작성중 ${n}/11</span>`; }
     const ord = orderOf(a);
     return `<div class="applicant-card ${cls} ${ab?'absent':''} ${currentApplicantId===a.id?'active':''}" ${ab?'':`onclick="selectApplicant('${a.id}')"`}>
-      <div class="applicant-name" style="${ab?'text-decoration:line-through;color:var(--gray-400)':''}">${ord?ord+'번 ':''}${esc(a.name)}</div>
+      <div class="applicant-name" style="${ab?'text-decoration:line-through;color:var(--gray-400)':''}">${a.code} ${esc(a.name)}</div>
       <div class="applicant-meta">기술직 정규직원(인턴_건축관련)</div>
-      <div>${ab?'':`<span class="badge ${ord?'badge-order':'badge-noorder'}">${orderLabel(a)}</span>`}${isBohun(a)&&!ab?'<span class="badge badge-bohun">보훈</span>':''}${badge}</div>
+      <div>${ab?'':`<span class="badge badge-order">${orderLabel(a)}</span>`}${isBohun(a)&&!ab?'<span class="badge badge-bohun">보훈</span>':''}${badge}</div>
     </div>`;
   }).join('');
   updateTabletSelect(list);
@@ -648,7 +639,7 @@ function selectApplicant(id) {
   $('pdfPlaceholder').style.display='none'; $('pdfViewer').style.display='block'; $('pdfViewer').src = drivePreview(a);
   $('pdfOpenLink').href = driveView(a); $('pdfOpenLink').style.display='';
   $('pdfPanelTitle').textContent = '📄 '+a.name+' — 자기소개서';
-  $('evalPanelName').textContent = (orderOf(a)?orderOf(a)+'번 ':'')+a.name;
+  $('evalPanelName').textContent = a.code+' '+a.name;
   $('evalPanelSub').textContent = '기술직 정규직원(인턴_건축관련)'+(isBohun(a)?' · 보훈대상자':'');
   $('evalFooter').style.display='flex'; $('evalTypeTabs').style.display='flex';
   $('absentBtn').style.display = isAdminUser() ? '' : 'none';
@@ -668,7 +659,7 @@ function syncCurrentApplicant() {
   const ev = getEv(a.id, currentUser.id);
   const serverSubmitted = !!ev?.submitted;
   if (serverSubmitted !== formSubmitted) { loadDraft(a); renderEvalForm(a); }
-  else { const t = $('evalPanelName'); const ord = orderOf(a); t.textContent = (ord?ord+'번 ':'')+a.name; }
+  else { const t = $('evalPanelName'); const ord = orderOf(a); t.textContent = a.code+' '+a.name; }
   updateTypeTabs(); calcTotals(); updateButtons();
 }
 
@@ -876,7 +867,7 @@ async function doFinalSubmit() {
 function gasPayload(ev, a) {
   const iT = iTot(ev), eT = eTot(ev), b = bohunPts(a);
   return {
-    projectTitle:PROJECT_TITLE, applicantNum: orderOf(a)||'', applicantName:a.name, department:'기술직 정규직원(인턴_건축관련)',
+    projectTitle:PROJECT_TITLE, applicantNum: a.code, applicantName:a.name, department:'기술직 정규직원(인턴_건축관련)',
     evaluatorName:ev.evaluatorName, evalDate:ev.evalDate,
     i1:ev.interview?.i1||0,i2:ev.interview?.i2||0,i3:ev.interview?.i3||0,i4:ev.interview?.i4||0,i5:ev.interview?.i5||0, interviewTotal:iT,
     e1:ev.expertise?.e1||0,e2:ev.expertise?.e2||0,e3:ev.expertise?.e3||0,e4:ev.expertise?.e4||0,e5:ev.expertise?.e5||0,e6:ev.expertise?.e6||0, expertiseTotal:eT,
@@ -1029,16 +1020,12 @@ function renderSettings() {
 }
 
 function renderDrawTable() {
-  if (drawEditing) return;
-  const opts = (sel) => '<option value="">미정</option>' + APPLICANTS.map((_,i)=>`<option value="${i+1}" ${Number(sel)===i+1?'selected':''}>${i+1}번</option>`).join('');
-  $('drawTableWrap').innerHTML = `<table class="draw-table"><thead><tr><th>성명</th><th>추첨 순서</th><th>보훈대상</th><th>결시</th></tr></thead><tbody>${
+  $('drawTableWrap').innerHTML = `<table class="draw-table"><thead><tr><th>지원자번호</th><th>성명</th><th>보훈대상</th><th>결시</th></tr></thead><tbody>${
     APPLICANTS.map(a=>`<tr>
-      <td><b>${esc(a.name)}</b></td>
-      <td><select class="draw-select" data-id="${a.id}" onchange="onDrawChange()">${opts(DB.draws[a.id])}</select></td>
+      <td><b>${a.code}</b></td><td>${esc(a.name)}</td>
       <td><label style="cursor:pointer"><input type="checkbox" ${isBohun(a)?'checked':''} onchange="setBohun('${a.id}',this.checked)" style="width:16px;height:16px;accent-color:#9d174d"> 보훈 (+${BOHUN_POINT}점)</label></td>
-      <td><label style="cursor:pointer;color:var(--red);font-weight:600"><input type="checkbox" ${isAbsent(a)?'checked':''} onchange="toggleAbsence('${a.id}',this)" style="width:16px;height:16px;accent-color:var(--red)"> 결시</label></td>
+      <td>${a.fixedAbsent?'<span style="color:var(--red);font-weight:600">결시 (고정)</span>':`<label style="cursor:pointer;color:var(--red);font-weight:600"><input type="checkbox" ${isAbsent(a)?'checked':''} onchange="toggleAbsence('${a.id}',this)" style="width:16px;height:16px;accent-color:var(--red)"> 결시</label>`}</td>
     </tr>`).join('')}</tbody></table>`;
-  $('drawMsg').textContent = '';
 }
 function onDrawChange() { drawEditing = true; $('drawMsg').textContent = '⚠️ 변경됨 — [순서 저장]을 눌러야 반영됩니다'; }
 function cancelDrawEdit() { drawEditing = false; renderDrawTable(); }
@@ -1243,7 +1230,7 @@ function printFinalReport() {
     }).join('');
     return `<tr style="${r.absent?'background:#fef2f2':r.rank===1?'background:#eff6ff':''}">
       <td style="padding:4px 6px;border:1px solid #ccc;text-align:center">${rankStr}</td>
-      <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:10px;color:#6b7280">${orderOf(r.a)||'-'}</td>
+      <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:10px;color:#6b7280">${r.a.code}</td>
       <td style="padding:4px 6px;border:1px solid #ccc;font-weight:700;font-size:11px">${esc(r.a.name)}${isBohun(r.a)?'<span style="font-size:9px;background:#fce7f3;color:#9d174d;padding:1px 3px;border-radius:2px;margin-left:2px">보훈</span>':''}</td>
       ${cells}
       <td style="padding:4px 6px;border:1px solid #ccc;text-align:center;font-size:10px;color:#16a34a">${r.b>0?'+'+r.b:'—'}</td>
@@ -1262,7 +1249,7 @@ function printFinalReport() {
       ${winner?`<span style="background:#dceeff;color:#0d2e6e;padding:2px 9px;border-radius:4px;font-size:11px;font-weight:700">최종 선발 후보: ${esc(winner.a.name)} (${r1(winner.fAvg)}점)</span>`:''}
     </div>
     <table><thead><tr>
-      <th rowspan="2" style="${th}background:#374151">순위</th><th rowspan="2" style="${th}background:#374151">추첨번호</th><th rowspan="2" style="${th}background:#374151">성명</th>${evHeaders}
+      <th rowspan="2" style="${th}background:#374151">순위</th><th rowspan="2" style="${th}background:#374151">지원자번호</th><th rowspan="2" style="${th}background:#374151">성명</th>${evHeaders}
       <th rowspan="2" style="${th}background:#374151">보훈</th><th rowspan="2" style="${th}background:#374151">최종 평균</th></tr><tr>${subHdrs}</tr></thead><tbody>${rows}</tbody></table>
     <div style="margin-top:12px;font-size:9px;color:#6b7280;line-height:1.7">※ 최종 평균 = 평가위원별 (면접 100점 + 전문성 100점)의 평균 + 보훈가점(해당자 ${BOHUN_POINT}점)<br>※ 본 문서는 삼육대학교 정규직 면접 평가 시스템에서 자동 생성되었습니다.</div>
   </body></html>`, '정규직 최종결과표');
